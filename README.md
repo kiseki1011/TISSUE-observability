@@ -1,4 +1,4 @@
-# 🔹TISSUE Observability
+# TISSUE Observability
 
 > [!WARNING]
 > **This repo is just a battery-included example to get simple dashboards.**
@@ -13,15 +13,15 @@ The following stack uses:
 - [Loki](https://github.com/grafana/loki)
 - [Alloy](https://github.com/grafana/alloy)
 
-# 🔹Quickstart
+# 🔶 Quickstart
 
-## Prerequisites
+## 🔸 Prerequisites
 Following must be exposed in the running TISSUE instance:
 - `GET /actuator/prometheus` (OpenMetrics), on the internal actuator port **8081**
 - Structured JSON to **stdout** (the `prod` Spring profile uses a Logstash encoder)
 - `GET /actuator/health`
 
-## Configuration
+## 🔸 Configuration
 
 | File | What to set |
 |------|-------------|
@@ -31,7 +31,7 @@ Following must be exposed in the running TISSUE instance:
 
 Dashboards (`jvm-micrometer`, `spring-boot-observability`) and the Prometheus / Loki datasources are automatically provisioned on startup. Loki is wired with a `traceId` derived field.
 
-## Same host as TISSUE
+## 🔸 Same host as TISSUE
 
 Prometheus scrapes the app in-network at `app:8081`, so no port needs to be published.
 Make sure the app and this stack share a docker network (see the comments in
@@ -43,7 +43,7 @@ docker compose -f compose.observability.yaml up -d
 
 Grafana is served at `http://localhost:3000` (default `admin` / `admin`).
 
-## Separate monitoring host
+## 🔸 Separate monitoring host
 
 On the **app host**, publish the actuator port and firewall it to the monitoring host only:
 
@@ -67,7 +67,7 @@ docker compose -f compose.observability.yaml up -d
 Finally, set the app-side Alloy's `LOKI_ENDPOINT` to this host
 (`http://<monitoring-host>:3100/loki/api/v1/push`) so logs are shipped across.
 
-# 🔹Notes
+# 🔶 Notes
 
 - Change the **Grafana admin password**
 - Prometheus (9090), Loki (3100), and the actuator (8081) have no auth. Do not expose them publicly.
