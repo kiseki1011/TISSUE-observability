@@ -1,7 +1,7 @@
 # TISSUE Observability
 
 > [!WARNING]
-> **This repo is just a battery-included example to get simple dashboards.**
+> **This repo is just a example to get simple monitoring dashboards for a TISSUE instance.**
 >
 > Currently tested against `TISSUE 0.7.0`
 
@@ -17,15 +17,13 @@ Alloy reads the app's container logs through the local docker socket, so
 **Alloy must run on the app host**. Prometheus / Loki / Grafana can run anywhere that can
 reach the app.
 
-<br>
-
 # 🔶 Quickstart
 
 ## 🔸 Prerequisites
 Following must be exposed in the running TISSUE instance:
-- `GET /actuator/prometheus` (OpenMetrics), on the internal actuator port **8081**
-- Structured JSON to **stdout** (Spring `prod` profile uses Logstash encoder)
+- `GET /actuator/prometheus`, on the internal actuator port **8081**
 - `GET /actuator/health`
+- Structured JSON to **stdout** (Spring `prod` profile uses Logstash encoder)
 
 ## 🔸 Configuration
 
@@ -76,8 +74,6 @@ Set the scrape target to `<app-host>:8081` in `prometheus/prometheus.yml`, then
 ```bash
 docker compose -f compose.observability.yaml up -d
 ```
-
-<br>
 
 # 🔶 Notes
 
