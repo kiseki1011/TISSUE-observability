@@ -32,7 +32,7 @@ services:
     environment:
       LOKI_ENDPOINT: ${LOKI_ENDPOINT:-http://loki:3100/loki/api/v1/push}
     volumes:
-      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - alloy_data:/var/lib/alloy/data
 
