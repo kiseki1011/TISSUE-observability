@@ -29,7 +29,7 @@ Following must be exposed in the running TISSUE instance:
 
 | File | Set                                                        |
 |------|------------------------------------------------------------|
-| `prometheus/prometheus.yml` | scrape target (`app:8081`, or `<app-host>:8081` if split)  |
+| `prometheus/prometheus.yml` | scrape target (`tissue-app:8081`, or `<app-host>:8081` if split)  |
 | `alloy/config.alloy` | log container filters (`tissue-app`, `tissue-db`)          |
 | `.env` | Grafana credentials + `LOKI_ENDPOINT` (see `.env.example`) |
 
@@ -49,7 +49,7 @@ docker network connect tissue-net tissue-app
 docker compose -f compose.observability.yaml -f compose.alloy.yaml up -d
 docker network connect tissue-net tissue-prometheus
 ```
-Keep the scrape target as `app:8081` in `prometheus/prometheus.yml` (default). 
+Keep the scrape target as `tissue-app:8081` in `prometheus/prometheus.yml` (default).
 
 Grafana is served at `http://localhost:3000` (`admin` / `admin`).
 
