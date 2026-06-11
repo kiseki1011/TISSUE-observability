@@ -1,0 +1,10 @@
+# Publishes the actuator/metrics port so a Prometheus running on another machine can
+# scrape app:8081.
+#
+# Single-host deploys do not need this.
+# An in-network Prometheus reaches app:8081 directly over the docker network.
+# Firewall 8081 so only the monitoring host can reach it.
+services:
+  app:
+    ports:
+      - "8081:8081" # Actuator: /actuator/health, /actuator/prometheus

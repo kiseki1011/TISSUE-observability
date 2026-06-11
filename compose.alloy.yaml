@@ -1,0 +1,40 @@
+# Log shipper
+# Runs ON THE APP HOST, next to the app.
+#
+# Alloy reads the app/db container logs through the local docker socket and pushes them
+# to Loki. It needs the docker socket (local) to the app. So it must live on the same host as the app,
+# while Loki can be anywhere (set LOKI_ENDPOINT).
+#
+# 1) Same host as the monitoring stack.
+#    Same compose project/network, so the default LOKI_ENDPOINT (http://loki:3100) resolves.
+#
+#    Run with:
+#      docker compose -f compose.observability.yaml -f compose.alloy.yaml up -d
+#
+# 2) Separate monitoring host.
+#    Run on the app host, point at the remote Loki
+#
+#    Edit prod .env:
+#      LOKI_ENDPOINT=http://<monitoring-host>:3100/loki/api/v1/push
+#    Run with:
+#      docker compose -f compose.alloy.yaml up -d
+#
+services:
+  alloy:
+    image: grafana/alloy:v1.5.0
+    container_name: tissue-alloy
+    restart: unless-stopped
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    environment:
+      LOKI_ENDPOINT: ${LOKI_ENDPOINT:-http://loki:3100/loki/api/v1/push}
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy_data:/var/lib/alloy/data
+
+volumes:
+  alloy_data:
