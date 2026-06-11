@@ -1,0 +1,126 @@
+// ==================================================================
+// Grafana Alloy Config
+// Discovers Tissue's docker containers, parses logs, and ships to Loki.
+//
+// Two pipelines:
+//   * app (tissue-app):          JSON logs (logback LogstashEncoder)
+//                                level / logger promoted to labels
+//   * db  (tissue-db):           plain text PostgreSQL log
+//                                auto_explain plans appear in stderr
+//
+// Both share the same Loki write endpoint.
+// ==================================================================
+
+discovery.docker "app" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "5s"
+  filter {
+    name   = "name"
+    values = ["tissue-app"]
+  }
+}
+
+discovery.relabel "app" {
+  targets = discovery.docker.app.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/?(.*)"
+    target_label  = "container"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_log_stream"]
+    target_label  = "stream"
+  }
+  rule {
+    target_label = "job"
+    replacement  = "tissue-docker"
+  }
+}
+
+loki.source.docker "app" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.relabel.app.output
+  forward_to    = [loki.process.app.receiver]
+  relabel_rules = discovery.relabel.app.rules
+}
+
+loki.process "app" {
+  forward_to = [loki.write.local.receiver]
+
+  stage.json {
+    expressions = {
+      level   = "level",
+      logger  = "logger",
+      traceId = "traceId",
+      spanId  = "spanId",
+      ts      = "\"@timestamp\"",
+    }
+  }
+
+  stage.timestamp {
+    source = "ts"
+    format = "RFC3339Nano"
+  }
+
+  // Keep label cardinality bounded, level/logger only
+  stage.labels {
+    values = {
+      level  = "",
+      logger = "",
+    }
+  }
+}
+
+// Postgres container (plain text PostgreSQL log)
+discovery.docker "db" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "5s"
+  filter {
+    name   = "name"
+    values = ["tissue-db"]
+  }
+}
+
+discovery.relabel "db" {
+  targets = discovery.docker.db.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/?(.*)"
+    target_label  = "container"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_log_stream"]
+    target_label  = "stream"
+  }
+  rule {
+    target_label = "job"
+    replacement  = "tissue-docker"
+  }
+}
+
+loki.source.docker "db" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.relabel.db.output
+  forward_to    = [loki.process.db.receiver]
+  relabel_rules = discovery.relabel.db.rules
+}
+
+loki.process "db" {
+  forward_to = [loki.write.local.receiver]
+
+  stage.multiline {
+    firstline     = "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}"
+    max_wait_time = "3s"
+  }
+}
+
+// Common Loki sink.
+// LOKI_ENDPOINT can point to a remote loki when monitoring is on a separate host.
+// Defaults to the loki service on the same docker network (single-host).
+loki.write "local" {
+  endpoint {
+    url = coalesce(sys.env("LOKI_ENDPOINT"), "http://loki:3100/loki/api/v1/push")
+  }
+}

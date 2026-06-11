@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 10s
+  external_labels:
+    environment: prod
+
+# `targets`:`app:8081` resolves via the docker network when running on the same host as the app.
+# For a split deployment, replace with the app host's reachable address
+# Example: 192.168.1.50:8081
+scrape_configs:
+  - job_name: tissue-app
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - app:8081
+        labels:
+          application: tissue
+
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090
