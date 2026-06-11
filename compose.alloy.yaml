@@ -1,5 +1,5 @@
 # Log shipper
-# Runs ON THE APP HOST, next to the app.
+# Runs on the App Host, next to the app.
 #
 # Alloy reads the app/db container logs through the local docker socket and pushes them
 # to Loki. It needs the docker socket (local) to the app. So it must live on the same host as the app,
