@@ -5,13 +5,17 @@
 >
 > Currently tested against `TISSUE 0.7.0`
 
-A monitoring stack for a self-hosted [TISSUE](https://github.com/kiseki1011) instance. 
+A monitoring stack for a self-hosted [TISSUE](https://github.com/kiseki1011) instance.
 
 The following stack uses:
 - [Prometheus](https://github.com/prometheus/prometheus)
+- [Loki](https://github.com/grafana/loki) 
 - [Grafana](https://github.com/grafana/grafana)
-- [Loki](https://github.com/grafana/loki)
 - [Alloy](https://github.com/grafana/alloy)
+
+Alloy reads the app's container logs through the local docker socket, so
+**Alloy must run on the app host**. Prometheus / Loki / Grafana can run anywhere that can
+reach the app.
 
 # 🔶 Quickstart
 
@@ -25,36 +29,48 @@ Following must be exposed in the running TISSUE instance:
 
 | File | What to set |
 |------|-------------|
-| `prometheus/prometheus.yml` | Scrape target. `app:8081` resolves over the docker network when monitoring runs on the same host. For a split deployment, use the app host's reachable address (example: `192.168.1.50:8081`). |
-| `alloy/config.alloy` | Filters container-name for log discovery. The pipeline will match `tissue-app`. Set the DB pipeline's filter to your Postgres container (`tissue-db`). |
-| `.env` | `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD`, and `LOKI_ENDPOINT` when Loki runs on another host. |
+| `observability/prometheus/prometheus.yml` | Scrape target. `app:8081` resolves over a shared docker network on the same host; for a split deployment, use the app host's reachable address (example: `192.168.1.50:8081`). |
+| `observability/alloy/config.alloy` | Container-name filters for log discovery: the app pipeline matches `tissue-app`, the db pipeline matches `tissue-db`. Adjust if your containers are named differently. |
+| `.env` | `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD`, and `LOKI_ENDPOINT` when Loki runs on another host. (see `.env.example`) |
 
-Dashboards (`jvm-micrometer`, `spring-boot-observability`) and the Prometheus / Loki datasources are automatically provisioned on startup. Loki is wired with a `traceId` derived field.
+Dashboards (`jvm-micrometer`, `spring-boot-observability`) and the Prometheus / Loki
+datasources are auto-provisioned on startup. Loki is wired with a `traceId` derived field,
+so log lines link back to traces.
 
 ## 🔸 Same host as TISSUE
 
-Prometheus scrapes the app in-network at `app:8081`, so no port needs to be published.
-Make sure the app and this stack share a docker network (see the comments in
-`compose.observability.yaml`), then:
+The app, this stack, and Alloy all on one machine. Alloy reads logs via the docker socket;
+Prometheus scrapes the app in-network, so the two need a shared docker network.
 
 ```bash
-docker compose -f compose.observability.yaml up -d
+# shared network so Prometheus can resolve the app by name
+docker network create tissue-net
+docker network connect tissue-net tissue-app          # the running app container
+
+# monitoring stack + log shipper (Alloy reaches loki:3100)
+docker compose -f compose.observability.yaml -f compose.alloy.yaml up -d
+docker network connect tissue-net tissue-prometheus
 ```
 
+Keep the scrape target as `app:8081` in `observability/prometheus/prometheus.yml` (the default).
 Grafana is served at `http://localhost:3000` (default `admin` / `admin`).
 
 ## 🔸 Separate monitoring host
 
-On the **app host**, publish the actuator port and firewall it to the monitoring host only:
+**App host** — publish the actuator port (firewall it to the monitoring host only) and
+run the log shipper, pointed at the remote Loki:
 
 ```bash
-docker compose -f compose.prod.yaml -f compose.metrics.yaml up -d
+docker compose -f compose.prod.yaml -f compose.metrics.yaml up -d   # publishes 8081
+
+LOKI_ENDPOINT=http://<monitoring-host>:3100/loki/api/v1/push \
+  docker compose -f compose.alloy.yaml up -d
 ```
 
-On the **monitoring host**, point the scrape target at the app host and bring up the stack:
+**Monitoring host** — point the scrape target at the app host, then bring up the stack:
 
 ```yaml
-# prometheus/prometheus.yml
+# observability/prometheus/prometheus.yml
 static_configs:
   - targets:
       - <app-host>:8081   # e.g. 192.168.1.50:8081
@@ -63,9 +79,6 @@ static_configs:
 ```bash
 docker compose -f compose.observability.yaml up -d
 ```
-
-Finally, set the app-side Alloy's `LOKI_ENDPOINT` to this host
-(`http://<monitoring-host>:3100/loki/api/v1/push`) so logs are shipped across.
 
 # 🔶 Notes
 
